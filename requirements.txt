@@ -1,0 +1,11 @@
+amqp==1.4.6
+anyjson==0.3.3
+argparse==1.2.1
+beautifulsoup4==4.3.2
+billiard==3.3.0.19
+celery==3.1.17
+kombu==3.0.24
+librabbitmq==1.6.1
+pytz==2014.10
+requests==2.5.1
+wsgiref==0.1.2
