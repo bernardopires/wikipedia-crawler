@@ -1,7 +1,8 @@
+import redis
 import requests
 
 from bs4 import BeautifulSoup
-from crawler.main import app
+from crawler.main import app, redis_pool
 from urlparse import urljoin, urlparse, urldefrag
 from celery.utils.log import get_task_logger
 
@@ -17,10 +18,11 @@ def fetch_url(url):
 @app.task
 def parse_response(response):
     links = find_links(response)
+    r = redis.Redis(connection_pool=redis_pool)
 
     for link in links:
-        # todo check if not already in some set
-        fetch_url.delay(link)
+        if r.sadd(urlparse(link).hostname, link):
+            fetch_url.delay(link)
 
 
 def find_links(response):

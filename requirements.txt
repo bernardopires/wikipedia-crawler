@@ -1,11 +1,16 @@
 amqp==1.4.6
 anyjson==0.3.3
 argparse==1.2.1
+backports.ssl-match-hostname==3.4.0.2
 beautifulsoup4==4.3.2
 billiard==3.3.0.19
 celery==3.1.17
+certifi==14.05.14
+flower==0.7.3
 kombu==3.0.24
 librabbitmq==1.6.1
 pytz==2014.10
+redis==2.10.3
 requests==2.5.1
+tornado==4.0.2
 wsgiref==0.1.2
