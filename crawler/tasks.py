@@ -8,12 +8,13 @@ from bs4 import BeautifulSoup
 from crawler.main import app, redis_pool
 from urlparse import urljoin, urlparse, urldefrag
 from celery.utils.log import get_task_logger
+from celery.exceptions import SoftTimeLimitExceeded
 from requests.exceptions import ConnectionError, RequestException
 
 logger = get_task_logger(__name__)
 
 
-@app.task
+@app.task(soft_time_limit=5)
 def fetch_url(url):
     # todo check response code and stuff
     try:
@@ -26,9 +27,10 @@ def fetch_url(url):
         logger.warning("Sleeping for 5 seconds...")
         time.sleep(5)
         fetch_url.delay(url)
+    except SoftTimeLimitExceeded:
+        fetch_url.delay(url)
     except RequestException:  # all other exceptions
         logger.warning("Ignoring url: %s" % url)
-        pass
 
 
 @app.task
@@ -45,14 +47,15 @@ def parse_response(response):
 
 def find_links(response):
     soup = BeautifulSoup(response['text'])
-    return filter(filter_link, [build_link(a['href'], response['url']) for a in soup.findAll('a', href=True)])
+    return filter(should_parse, [build_link(a['href'], response['url']) for a in soup.findAll('a', href=True)])
 
 
-def filter_link(link):
+def should_parse(link):
     # todo: ignore edit, revisions, etc
     parsed_url = urlparse(link)
-    return not link.startswith('#') and parsed_url.hostname == 'en.wikipedia.org' \
-            and "File:" not in parsed_url.path
+    if parsed_url.hostname is None:
+        return False
+    return not link.startswith('#') and parsed_url.hostname == 'en.wikipedia.org' and "File:" not in parsed_url.path
 
 
 def build_link(link, parent):
@@ -62,7 +65,11 @@ def build_link(link, parent):
 
 def save_response(response):
     parsed_url = urlparse(response['url'])
-    filename = "%s" % parsed_url.hostname + parsed_url.path
+    if parsed_url.path[-1] == '/':
+        filename = ".crawled/%s%sindex" % (parsed_url.hostname, parsed_url.path)
+    else:
+        filename = ".crawled/%s%s" % (parsed_url.hostname, parsed_url.path)
+
     if not os.path.exists(os.path.dirname(filename)):
         os.makedirs(os.path.dirname(filename))
     with codecs.open(filename, "w", "utf-8-sig") as f:
