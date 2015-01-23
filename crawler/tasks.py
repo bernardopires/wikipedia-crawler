@@ -18,7 +18,10 @@ def fetch_url(url):
     # todo check response code and stuff
     try:
         response = requests.get(url)
-        parse_response.delay(requests.get(url))
+        parse_response.delay({
+            'url': response.url,
+            'text': response.text,
+        })
     except ConnectionError:
         logger.warning("Sleeping for 5 seconds...")
         time.sleep(5)
@@ -41,8 +44,8 @@ def parse_response(response):
 
 
 def find_links(response):
-    soup = BeautifulSoup(response.text)
-    return filter(filter_link, [build_link(a['href'], response.url) for a in soup.findAll('a', href=True)])
+    soup = BeautifulSoup(response['text'])
+    return filter(filter_link, [build_link(a['href'], response['url']) for a in soup.findAll('a', href=True)])
 
 
 def filter_link(link):
@@ -58,9 +61,9 @@ def build_link(link, parent):
 
 
 def save_response(response):
-    parsed_url = urlparse(response.url)
+    parsed_url = urlparse(response['url'])
     filename = "%s" % parsed_url.hostname + parsed_url.path
     if not os.path.exists(os.path.dirname(filename)):
         os.makedirs(os.path.dirname(filename))
     with codecs.open(filename, "w", "utf-8-sig") as f:
-        f.write(response.text)
+        f.write(response['text'])
